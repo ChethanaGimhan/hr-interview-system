@@ -1,3 +1,11 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.environ.get("ANTHROPIC_API_KEY")
+print("Key loaded:", api_key is not None)
+
 import json
 
 def fake_claude_call(cv_text):
