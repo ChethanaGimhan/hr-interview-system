@@ -9,10 +9,19 @@ import os
 import json
 from fastapi import FastAPI , Header, HTTPException , Depends
 from dotenv import load_dotenv
+from fastapi import Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 
 load_dotenv()
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def verify_api_key(x_api_key: str = Header(...)):
     expected_key = os.environ.get("INTERNAL_API_KEY")
@@ -39,7 +48,8 @@ def read_root():
     return {"message": "HR interview system is running"}
 
 @app.post("/parse-cv")
-def parse_cv(request: CVUploadRequest, auth: None = Depends(verify_api_key)):
-    result = fake_claude_call(request.cv_text)
-    result["job_role_applied_for"] = request.job_role
+@limiter.limit("5/minute")
+def parse_cv(request: Request, payload: CVUploadRequest, auth: None = Depends(verify_api_key)):
+    result = fake_claude_call(payload.cv_text)
+    result["job_role_applied_for"] = payload.job_role
     return result
