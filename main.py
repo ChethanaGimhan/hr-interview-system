@@ -1,3 +1,10 @@
+from pydantic import BaseModel , Field
+
+class CVUploadRequest(BaseModel):
+    cv_text: str = Field(min_length=20)
+    job_role: str = Field(min_length=2)
+
+
 import os
 import json
 from fastapi import FastAPI
@@ -27,7 +34,7 @@ def read_root():
     return {"message": "HR interview system is running"}
 
 @app.post("/parse-cv")
-def parse_cv():
-    cv_text = "some raw CV text would go here"
-    result = fake_claude_call(cv_text)
+def parse_cv(request: CVUploadRequest):
+    result = fake_claude_call(request.cv_text)
+    result["job_role_applied_for"] = request.job_role
     return result
