@@ -1,3 +1,5 @@
+# CV parsing endpoint - accepts raw CV text and job role, returns structured JSON
+
 from pydantic import BaseModel , Field
 
 class CVUploadRequest(BaseModel):
