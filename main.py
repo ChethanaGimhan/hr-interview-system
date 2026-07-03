@@ -51,7 +51,9 @@ def fake_claude_call(cv_text):
 
 @app.get("/")
 def read_root():
+
     return {"message": "HR interview system - Version A"}
+
 
 @app.post("/parse-cv")
 @limiter.limit("5/minute")
