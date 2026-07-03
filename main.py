@@ -1,18 +1,13 @@
 import os
+import json
+from fastapi import FastAPI
 from dotenv import load_dotenv
 
 load_dotenv()
 
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-print("Key loaded:", api_key is not None)
-
-import json
+app = FastAPI()
 
 def fake_claude_call(cv_text):
-    """
-    Placeholder — this is where the real Claude API call goes later.
-    For now, it just returns a hardcoded example matching our schema.
-    """
     return {
         "name": "Nimal Perera",
         "experience_years": 2,
@@ -27,10 +22,12 @@ def fake_claude_call(cv_text):
         "job_role_applied_for": "Software Engineer Intern"
     }
 
-def main():
-    cv_text = "some raw CV text would go here, extracted from a PDF"
-    parsed = fake_claude_call(cv_text)
-    print(json.dumps(parsed, indent=2))
+@app.get("/")
+def read_root():
+    return {"message": "HR interview system is running"}
 
-if __name__ == "__main__":
-    main()
+@app.post("/parse-cv")
+def parse_cv():
+    cv_text = "some raw CV text would go here"
+    result = fake_claude_call(cv_text)
+    return result
