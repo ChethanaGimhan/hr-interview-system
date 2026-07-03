@@ -14,6 +14,10 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -50,6 +54,11 @@ def read_root():
 @app.post("/parse-cv")
 @limiter.limit("5/minute")
 def parse_cv(request: Request, payload: CVUploadRequest, auth: None = Depends(verify_api_key)):
+    logger.info(f"CV parse requested for role: {payload.job_role}")
     result = fake_claude_call(payload.cv_text)
     result["job_role_applied_for"] = payload.job_role
     return result
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
