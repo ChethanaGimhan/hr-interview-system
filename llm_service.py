@@ -9,6 +9,7 @@ import logging
 import os
 
 import anthropic
+from dotenv import load_dotenv
 from fastapi import HTTPException
 from google import genai
 from google.genai import errors as genai_errors
@@ -16,6 +17,12 @@ from google.genai import errors as genai_errors
 from models import ParsedCV, QuestionSet
 
 logger = logging.getLogger(__name__)
+
+# main.py also calls this, but it calls it *after* importing this module, so by
+# then the settings below have already been read. Loading here as well means
+# these pick up .env no matter what imports what first. load_dotenv is safe to
+# call more than once.
+load_dotenv()
 
 PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
