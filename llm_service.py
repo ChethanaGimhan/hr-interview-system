@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException
 from google import genai
 from google.genai import errors as genai_errors
+from google.genai import types as genai_types
 
 from models import ParsedCV, QuestionSet
 
@@ -40,7 +41,16 @@ def get_gemini_client():
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not configured")
-        _gemini_client = genai.Client(api_key=api_key)
+        # Retry the errors that are worth retrying. The SDK's default list is
+        # 408, 429 and 5xx - things that are temporary on Google's side. A 400
+        # or 404 is our own mistake and is never retried, which is correct:
+        # retrying a wrong model name just fails slower.
+        _gemini_client = genai.Client(
+            api_key=api_key,
+            http_options=genai_types.HttpOptions(
+                retry_options=genai_types.HttpRetryOptions(attempts=3, initial_delay=1.0)
+            ),
+        )
     return _gemini_client
 
 
