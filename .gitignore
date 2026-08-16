@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .env
 venv/
+.pytest_cache/
+
+# Local reference notes and chat history - not part of the project
+chat contents/
