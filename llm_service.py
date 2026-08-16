@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5")
 
 _gemini_client = None
@@ -93,7 +93,9 @@ def call_gemini(system_prompt, user_message, output_model):
     except genai_errors.APIError as e:
         if e.code == 429:
             raise HTTPException(status_code=429, detail="Gemini rate limit hit, try again shortly")
-        logger.error(f"Gemini API returned {e.code}")
+        # Log the real reason, but do not send it back to the caller - error
+        # messages from an upstream API can leak details they should not see.
+        logger.error(f"Gemini API returned {e.code}: {e.message}")
         raise HTTPException(status_code=502, detail="Gemini API request failed")
 
     if response.parsed is None:
