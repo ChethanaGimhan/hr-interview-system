@@ -1,0 +1,79 @@
+# The app itself, running on the local Kubernetes cluster.
+#
+# Needs these to exist first:
+#   kubectl create secret docker-registry ghcr-secret --docker-server=ghcr.io \
+#     --docker-username=<github username> --docker-password=<token with read:packages>
+#   kubectl create secret generic app-secrets \
+#     --from-literal=INTERNAL_API_KEY=<key> --from-literal=GEMINI_API_KEY=<key>
+#   kubectl create configmap app-config \
+#     --from-literal=LLM_PROVIDER=gemini --from-literal=GEMINI_MODEL=gemini-3.5-flash
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hr-app
+  template:
+    metadata:
+      labels:
+        app: hr-app
+    spec:
+      # The GHCR package is private, so the node needs a credential to pull it.
+      # Creating ghcr-secret is not enough on its own - the pod has to point at
+      # it here, which is the line that was missing and caused ImagePullBackOff.
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: hr-app
+          image: ghcr.io/chethanagimhan/hr-interview-system:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            # Settings that are not secret: which provider, which model.
+            - configMapRef:
+                name: app-config
+            # Actual credentials.
+            - secretRef:
+                name: app-secrets
+          # Readiness: should this pod be sent traffic yet? A failing readiness
+          # probe takes the pod out of the Service, but does not restart it.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # Liveness: is this pod stuck and worth restarting? Slower and more
+          # forgiving than readiness, because the answer here is "kill it".
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-app-service
+spec:
+  selector:
+    app: hr-app
+  # Exposed on 8080, not 8000, so it does not fight with uvicorn running
+  # locally during development.
+  ports:
+    - port: 8080
+      targetPort: 8000
+  type: LoadBalancer
