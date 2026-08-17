@@ -1,0 +1,3 @@
+# Line endings are decided here, not by each person's git config. Everything
+# uses LF, because these files end up running inside Linux containers.
+* text=auto eol=lf
