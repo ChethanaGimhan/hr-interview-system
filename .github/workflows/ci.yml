@@ -3,6 +3,10 @@ name: CI
 on:
   push:
     branches: [master]
+  # Also run on pull requests, so problems show up before the merge instead of
+  # after it. The push-image job stays master-only because of its own if.
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
