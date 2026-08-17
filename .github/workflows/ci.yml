@@ -21,6 +21,11 @@ jobs:
         with:
           image-ref: hr-interview-system:${{ github.sha }}
           severity: CRITICAL,HIGH
+          # Only fail on things we can actually do something about. The image
+          # still has unfixed Debian CVEs with no patch released, and blocking
+          # on those would break every build with no way to fix it.
+          ignore-unfixed: true
+          exit-code: '1'
 
   push-image:
     needs: test
