@@ -51,6 +51,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/chethanagimhan/hr-interview-system:latest
+          # latest is convenient but it is a moving pointer - it cannot be
+          # rolled back to. The commit sha tag is the one that identifies an
+          # exact build, so a bad deploy can go back to a known good image.
+          tags: |
+            ghcr.io/chethanagimhan/hr-interview-system:latest
+            ghcr.io/chethanagimhan/hr-interview-system:${{ github.sha }}
 
     
