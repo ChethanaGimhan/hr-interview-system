@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def extract_text(pdf_bytes: bytes) -> str:
+    # The file name and the content type are just text the caller typed, so
+    # neither one proves anything. The first bytes of the file are the actual
+    # evidence, and every real PDF starts with %PDF-.
+    if not pdf_bytes.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="This file is not a PDF")
+    
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
         pages = [page.extract_text() for page in reader.pages]

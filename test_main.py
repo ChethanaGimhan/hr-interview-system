@@ -89,6 +89,31 @@ def test_upload_cv_rejects_a_file_that_is_not_a_pdf():
     assert response.status_code == 400
 
 
+def test_upload_cv_rejects_an_exe_renamed_as_a_pdf():
+    # A Windows .exe starts with MZ. The file name and the content type here
+    # both claim it is a PDF, so the first bytes are the only thing that shows
+    # what it really is.
+    fake = b"MZ\x90\x00" + b"\x00" * 200
+    response = client.post(
+        "/upload-cv",
+        headers={"x-api-key": API_KEY},
+        files={"file": ("cv.pdf", fake, "application/pdf")},
+    )
+    assert response.status_code == 400
+
+
+def test_upload_cv_rejects_a_file_over_the_size_limit():
+    # Starts with %PDF- so it gets past the type check, and is bigger than the
+    # 5 MB cap so the chunked read has to stop it.
+    too_big = b"%PDF-1.4" + b"A" * (6 * 1024 * 1024)
+    response = client.post(
+        "/upload-cv",
+        headers={"x-api-key": API_KEY},
+        files={"file": ("cv.pdf", too_big, "application/pdf")},
+    )
+    assert response.status_code == 413
+
+
 def test_parse_cv_rejects_bad_api_key():
     response = client.post(
         "/parse-cv",

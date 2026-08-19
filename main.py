@@ -26,6 +26,28 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# 5 MB is far more than any real CV needs, and small enough that even a burst
+# of uploads cannot fill the 512Mi this pod gets in Kubernetes.
+MAX_CV_BYTES = 5 * 1024 * 1024
+CHUNK_SIZE = 64 * 1024
+
+
+async def read_upload(file: UploadFile) -> bytes:
+    # Read a piece at a time and give up as soon as the total goes over the
+    # limit. file.read() with no argument pulls the whole upload into memory
+    # first, and a 200MB test file took this process from 80MB to 470MB.
+    chunks = []
+    total = 0
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_CV_BYTES:
+            raise HTTPException(status_code=413, detail="CV file is too large, the limit is 5 MB")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
 
 def verify_api_key(x_api_key: str = Header(...)):
     expected_key = os.environ.get("INTERNAL_API_KEY")
@@ -53,7 +75,7 @@ async def upload_cv(request: Request, file: UploadFile, auth: None = Depends(ver
     # Reading the PDF is fast and free, so it gets its own endpoint. The slow,
     # paid LLM call stays in /generate-questions, which means a failure there
     # does not cost the user another upload.
-    contents = await file.read()
+    contents = await read_upload(file)
     cv_text = pdf_service.extract_text(contents)
     logger.info(f"Read {len(cv_text)} characters out of the uploaded CV")
     return {"cv_text": cv_text}
