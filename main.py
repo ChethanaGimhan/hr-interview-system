@@ -6,12 +6,13 @@ import os
 import secrets
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 import llm_service
+import pdf_service
 from models import CVUploadRequest, GenerateQuestionsRequest, InterviewPackage, ParsedCV
 
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +45,18 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.post("/upload-cv")
+@limiter.limit("10/minute")
+async def upload_cv(request: Request, file: UploadFile, auth: None = Depends(verify_api_key)):
+    # Reading the PDF is fast and free, so it gets its own endpoint. The slow,
+    # paid LLM call stays in /generate-questions, which means a failure there
+    # does not cost the user another upload.
+    contents = await file.read()
+    cv_text = pdf_service.extract_text(contents)
+    logger.info(f"Read {len(cv_text)} characters out of the uploaded CV")
+    return {"cv_text": cv_text}
 
 
 @app.post("/parse-cv", response_model=ParsedCV)

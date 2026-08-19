@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,6 +11,10 @@ client = TestClient(main.app)
 
 API_KEY = "test-key"
 CV_TEXT = "Nimal Perera. BSc Computer Science, University of Moratuwa. Python, Docker."
+
+# A made up CV, kept next to the tests so the upload tests have a real PDF to
+# send. Path is built from __file__ so pytest works from any directory.
+SAMPLE_CV = Path(__file__).parent / "sample_cv.pdf"
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +59,34 @@ def test_health_check():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_upload_cv_rejects_bad_api_key():
+    response = client.post(
+        "/upload-cv",
+        headers={"x-api-key": "wrong-key"},
+        files={"file": ("cv.pdf", SAMPLE_CV.read_bytes(), "application/pdf")},
+    )
+    assert response.status_code == 401
+
+
+def test_upload_cv_returns_the_text_inside_the_pdf():
+    response = client.post(
+        "/upload-cv",
+        headers={"x-api-key": API_KEY},
+        files={"file": ("cv.pdf", SAMPLE_CV.read_bytes(), "application/pdf")},
+    )
+    assert response.status_code == 200
+    assert "Nimal Perera" in response.json()["cv_text"]
+
+
+def test_upload_cv_rejects_a_file_that_is_not_a_pdf():
+    response = client.post(
+        "/upload-cv",
+        headers={"x-api-key": API_KEY},
+        files={"file": ("cv.pdf", b"this is not a pdf at all", "application/pdf")},
+    )
+    assert response.status_code == 400
 
 
 def test_parse_cv_rejects_bad_api_key():
