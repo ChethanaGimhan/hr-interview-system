@@ -2,6 +2,8 @@ fastapi==0.139.0
 uvicorn==0.49.0
 python-dotenv==1.2.2
 slowapi==0.1.10
+pypdf==6.16.1
+python-multipart==0.0.32
 google-genai==2.18.1
 anthropic==0.122.0
 pytest==9.1.1
