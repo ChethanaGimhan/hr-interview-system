@@ -3,6 +3,9 @@ __pycache__/
 .env
 venv/
 .pytest_cache/
+# The local SQLite database file. Real data, and it would conflict on every
+# pull. Kubernetes uses Postgres instead.
+*.db
 
 # Local reference notes and chat history - not part of the project
 chat contents/
