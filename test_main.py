@@ -1,8 +1,15 @@
+import os
 from pathlib import Path
+
+# Point the app at a throwaway database before importing it, so running the
+# tests never touches the real one. database.py reads this when it is imported,
+# which happens on the "import main" line below.
+os.environ["DATABASE_URL"] = "sqlite:///./test_hr_interview.db"
 
 import pytest
 from fastapi.testclient import TestClient
 
+import database
 import llm_service
 import main
 from models import Education, InterviewQuestion, ParsedCV, Project, QuestionSet, Rubric
@@ -20,6 +27,22 @@ SAMPLE_CV = Path(__file__).parent / "sample_cv.pdf"
 @pytest.fixture(autouse=True)
 def api_key(monkeypatch):
     monkeypatch.setenv("INTERNAL_API_KEY", API_KEY)
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    # The rate limiter counts requests for the whole test run, and every test
+    # comes from the same client address, so without this the later tests get
+    # a 429 because of calls the earlier ones made.
+    main.limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def empty_database():
+    # Every test starts with empty tables, otherwise rows saved by one test
+    # show up in the next one and the list test counts the wrong number.
+    database.Base.metadata.drop_all(bind=database.engine)
+    database.Base.metadata.create_all(bind=database.engine)
 
 
 # Stand-ins for the LLM calls, so the tests (and CI) run without an API key
@@ -168,3 +191,40 @@ def test_generate_questions_returns_questions_with_rubrics(fake_llm):
     assert question["category"] in ["verification", "technical", "gap", "behavioral"]
     assert question["rubric"]["strong_answer_covers"]
     assert question["rubric"]["follow_up_probe"]
+
+
+def generate_one(job_role="Backend Intern"):
+    return client.post(
+        "/generate-questions",
+        headers={"x-api-key": API_KEY},
+        json={"cv_text": CV_TEXT, "job_role": job_role, "question_count": 8},
+    )
+
+
+def test_generated_questionnaire_is_saved_and_can_be_read_back(fake_llm):
+    interview_id = generate_one().json()["interview_id"]
+    assert interview_id is not None
+
+    response = client.get(f"/interviews/{interview_id}", headers={"x-api-key": API_KEY})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["candidate_name"] == "Nimal Perera"
+    assert body["job_role"] == "Backend Intern"
+    # The rubric has to survive the trip through the JSON column unchanged.
+    assert body["questions"][0]["rubric"]["follow_up_probe"]
+
+
+def test_listing_shows_the_saved_questionnaires_newest_first(fake_llm):
+    generate_one("Backend Intern")
+    generate_one("DevOps Intern")
+
+    response = client.get("/interviews", headers={"x-api-key": API_KEY})
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert body[0]["question_count"] == 1
+
+
+def test_asking_for_a_questionnaire_that_does_not_exist_returns_404():
+    response = client.get("/interviews/9999", headers={"x-api-key": API_KEY})
+    assert response.status_code == 404

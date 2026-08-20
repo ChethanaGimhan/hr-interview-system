@@ -8,6 +8,7 @@
 # Only the request models carry constraints, because FastAPI really does check
 # those.
 
+from datetime import datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -74,5 +75,31 @@ class QuestionSet(BaseModel):
 # --- what /generate-questions sends back ---
 
 class InterviewPackage(BaseModel):
+    # Filled in once the questionnaire is saved, so the caller can come back to
+    # it later instead of paying for the two LLM calls again.
+    interview_id: Optional[int] = None
     candidate: ParsedCV
+    questions: List[InterviewQuestion]
+
+
+# --- what the saved questionnaires look like coming back out ---
+
+class InterviewSummary(BaseModel):
+    id: int
+    candidate_name: str
+    job_role: str
+    created_at: datetime
+    question_count: int
+
+
+class InterviewDetail(BaseModel):
+    # Only the parts of the candidate that are worth keeping next to the
+    # questions. Education and projects are used to write the questions and
+    # then not needed again, so they are not stored.
+    id: int
+    candidate_name: str
+    job_role: str
+    experience_years: int
+    skills: List[str]
+    created_at: datetime
     questions: List[InterviewQuestion]
