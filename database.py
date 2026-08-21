@@ -16,7 +16,19 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./hr_interview.db")
 # this setting is only passed when we are actually on SQLite.
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    # Postgres runs in a pod, and a pod can be replaced at any time, which
+    # leaves the pool holding sockets to a container that no longer exists.
+    # pool_pre_ping sends a throwaway query first and quietly reopens the
+    # connection if it has died, instead of failing the request.
+    pool_pre_ping=True,
+    # Also drop any connection older than 30 minutes, so idle ones do not sit
+    # around long enough for something in between to close them.
+    pool_recycle=1800,
+)
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 Base = declarative_base()
 
