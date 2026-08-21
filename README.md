@@ -119,7 +119,7 @@ result every time. They cover validation, authentication and the response shape.
 - API key in the `x-api-key` header, compared with `secrets.compare_digest`
 - Rate limiting: 5/min on `/parse-cv`, 3/min on `/generate-questions`
 - Container runs as a non-root user
-- Trivy scans the image on every push to `master`
+- Trivy scans the image on every push to `main`
 - Secrets come from environment variables locally and Kubernetes Secrets in the
   cluster, never from the repo
 - Errors from the LLM provider are logged in full but returned as a generic

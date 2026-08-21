@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   # Also run on pull requests, so problems show up before the merge instead of
-  # after it. The push-image job stays master-only because of its own if.
+  # after it. The push-image job stays main-only because of its own if.
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   test:
@@ -34,7 +34,7 @@ jobs:
   push-image:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
