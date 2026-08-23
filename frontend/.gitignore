@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# except the example, which only has placeholder values and is there to show
+# which variables the app needs
+!.env.example
 
 # vercel
 .vercel
