@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+import CandidateCard from "./components/CandidateCard";
+import QuestionCard from "./components/QuestionCard";
+
 // FastAPI sends a string in detail for the errors we raise ourselves, and a
 // list of problems when Pydantic rejects the request, so both shapes turn up.
 function errorMessage(body) {
@@ -212,9 +215,24 @@ export default function Home() {
       </form>
 
       {result && (
-        <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-4 font-mono text-xs">
-          {JSON.stringify(result, null, 2)}
-        </pre>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-xl font-semibold">
+              {result.questions.length} questions to ask
+            </h2>
+            <p className="text-sm text-slate-500">
+              Saved as questionnaire #{result.interview_id}
+            </p>
+          </div>
+
+          <CandidateCard candidate={result.candidate} />
+
+          <ol className="space-y-4">
+            {result.questions.map((question, index) => (
+              <QuestionCard key={index} question={question} number={index + 1} />
+            ))}
+          </ol>
+        </div>
       )}
     </div>
   );
