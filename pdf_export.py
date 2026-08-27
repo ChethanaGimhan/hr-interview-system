@@ -49,6 +49,7 @@ def _bullets(pdf, heading, points):
     pdf.set_font("Helvetica", "", 9)
     for point in points:
         _line(pdf, 5, f"  - {point}")
+    pdf.ln(2)
 
 
 def build_questionnaire_pdf(interview):
