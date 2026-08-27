@@ -1,4 +1,4 @@
-import { callBackend } from "../backend";
+import { callBackend } from "../../lib/backend";
 
 // The slow one. Two LLM calls happen behind this, so it takes around 45
 // seconds before anything comes back.

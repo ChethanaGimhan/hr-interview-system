@@ -1,4 +1,4 @@
-import { callBackend } from "../backend";
+import { callBackend } from "../../lib/backend";
 
 // The browser posts the PDF here and this passes it on to FastAPI. The file is
 // forwarded as it arrived, so the size limit and the %PDF- check on the backend

@@ -1,23 +1,32 @@
-// One place that knows how to call FastAPI. Every route handler goes through
-// here, so the API key is attached in a single spot and errors come back in the
-// same shape no matter which endpoint was called.
+// One place that knows where FastAPI is and how to authenticate with it.
 //
-// This file only ever runs on the server. The key it reads is never sent to the
-// browser and never ends up in the JavaScript bundle.
+// This file only ever runs on the server. The key it reads is never sent to
+// the browser and never ends up in the JavaScript bundle.
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
+// The low level call. Pages use this directly, because a page that renders on
+// the server can talk to the backend itself without going through a route.
+export function backendFetch(path, options = {}) {
+  return fetch(`${BACKEND_URL}${path}`, {
+    ...options,
+    // Never reuse a cached answer. The list of questionnaires changes every
+    // time somebody generates one.
+    cache: "no-store",
+    headers: {
+      ...options.headers,
+      "x-api-key": process.env.INTERNAL_API_KEY || "",
+    },
+  });
+}
+
+// The wrapper the route handlers use, so anything the browser calls gets its
+// errors back in the same shape.
 export async function callBackend(path, options = {}) {
   let response;
 
   try {
-    response = await fetch(`${BACKEND_URL}${path}`, {
-      ...options,
-      headers: {
-        ...options.headers,
-        "x-api-key": process.env.INTERNAL_API_KEY || "",
-      },
-    });
+    response = await backendFetch(path, options);
   } catch (error) {
     // Thrown when the backend is not running at all, or the hostname does not
     // resolve. The user gets a plain message, the reason goes to the log.
