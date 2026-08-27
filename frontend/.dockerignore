@@ -1,0 +1,14 @@
+# Everything here is left out of the build context, which is the set of files
+# sent to Docker before the build even starts.
+
+# Installed inside the image instead, from the lock file. Copying these in
+# would be 400MB of files built for the wrong operating system.
+node_modules
+
+# Build output from running npm run build on the laptop. The image builds its
+# own, and an old one here would quietly end up in the image.
+.next
+
+# Real secrets. .env.example only has placeholders so it can stay.
+.env*
+!.env.example
