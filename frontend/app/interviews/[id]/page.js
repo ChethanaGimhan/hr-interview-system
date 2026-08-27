@@ -65,9 +65,20 @@ export default async function InterviewPage({ params }) {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold">
-        {interview.questions.length} questions to ask
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">
+          {interview.questions.length} questions to ask
+        </h2>
+        {/* A plain link, not a button. The response carries a Content-Disposition
+            header saying attachment, which is what makes the browser save the
+            file instead of opening it, so no JavaScript is needed here. */}
+        <a
+          href={`/api/interviews/${interview.id}/pdf`}
+          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+        >
+          Download as PDF
+        </a>
+      </div>
 
       <ol className="space-y-4">
         {interview.questions.map((question, index) => (

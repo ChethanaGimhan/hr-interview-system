@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import CandidateCard from "./components/CandidateCard";
@@ -216,13 +217,24 @@ export default function Home() {
 
       {result && (
         <div className="space-y-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-xl font-semibold">
-              {result.questions.length} questions to ask
-            </h2>
-            <p className="text-sm text-slate-500">
-              Saved as questionnaire #{result.interview_id}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">
+                {result.questions.length} questions to ask
+              </h2>
+              <Link
+                href={`/interviews/${result.interview_id}`}
+                className="text-sm text-slate-500 underline"
+              >
+                Saved as questionnaire #{result.interview_id}
+              </Link>
+            </div>
+            <a
+              href={`/api/interviews/${result.interview_id}/pdf`}
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+            >
+              Download as PDF
+            </a>
           </div>
 
           <CandidateCard candidate={result.candidate} />
