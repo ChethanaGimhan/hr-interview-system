@@ -5,6 +5,7 @@ slowapi==0.1.10
 sqlalchemy==2.0.52
 psycopg2-binary==2.9.12
 pypdf==6.16.1
+fpdf2==2.8.8
 python-multipart==0.0.32
 google-genai==2.18.1
 anthropic==0.122.0

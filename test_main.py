@@ -225,6 +225,37 @@ def test_listing_shows_the_saved_questionnaires_newest_first(fake_llm):
     assert body[0]["question_count"] == 1
 
 
+def test_questionnaire_downloads_as_a_pdf(fake_llm):
+    interview_id = generate_one().json()["interview_id"]
+
+    response = client.get(f"/interviews/{interview_id}/pdf", headers={"x-api-key": API_KEY})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    # The same check the upload endpoint does, only this time on a file we made
+    # ourselves: a real PDF starts with %PDF-.
+    assert response.content.startswith(b"%PDF-")
+    assert "Nimal_Perera_questions.pdf" in response.headers["content-disposition"]
+
+
+def test_a_name_with_quotes_in_it_cannot_break_the_download_header(fake_llm, monkeypatch):
+    # A CV can say anything, and the candidate name ends up inside a response
+    # header, so a quote or a newline in it must not survive that far.
+    nasty = FAKE_CANDIDATE.model_copy(update={"name": 'Nimal" \nX-Injected: yes'})
+    monkeypatch.setattr(llm_service, "parse_cv", lambda cv_text, job_role: nasty.model_copy())
+
+    interview_id = generate_one().json()["interview_id"]
+    response = client.get(f"/interviews/{interview_id}/pdf", headers={"x-api-key": API_KEY})
+
+    assert response.status_code == 200
+    assert "x-injected" not in response.headers
+    # Every character that was not a letter or a number became an underscore,
+    # so the quote, the space and the newline are all gone.
+    assert (
+        response.headers["content-disposition"]
+        == 'attachment; filename="Nimal___X_Injected__yes_questions.pdf"'
+    )
+
+
 def test_asking_for_a_questionnaire_that_does_not_exist_returns_404():
     response = client.get("/interviews/9999", headers={"x-api-key": API_KEY})
     assert response.status_code == 404

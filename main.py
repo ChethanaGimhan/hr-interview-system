@@ -7,7 +7,7 @@ import secrets
 from typing import List
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 import database
 import db_models
 import llm_service
+import pdf_export
 import pdf_service
 from models import (
     CVUploadRequest,
@@ -86,6 +87,13 @@ def save_interview(db: Session, package: InterviewPackage) -> db_models.Intervie
     # crash halfway through cannot leave a questionnaire with no questions.
     db.commit()
     db.refresh(interview)
+    return interview
+
+
+def find_interview(db: Session, interview_id: int) -> db_models.Interview:
+    interview = db.get(db_models.Interview, interview_id)
+    if interview is None:
+        raise HTTPException(status_code=404, detail="No questionnaire with that id")
     return interview
 
 
@@ -189,9 +197,7 @@ def get_interview(
     db: Session = Depends(database.get_db),
     auth: None = Depends(verify_api_key),
 ):
-    interview = db.get(db_models.Interview, interview_id)
-    if interview is None:
-        raise HTTPException(status_code=404, detail="No questionnaire with that id")
+    interview = find_interview(db, interview_id)
 
     return InterviewDetail(
         id=interview.id,
@@ -209,4 +215,23 @@ def get_interview(
             }
             for question in interview.questions
         ],
+    )
+
+
+@app.get("/interviews/{interview_id}/pdf")
+def download_interview_pdf(
+    interview_id: int,
+    db: Session = Depends(database.get_db),
+    auth: None = Depends(verify_api_key),
+):
+    interview = find_interview(db, interview_id)
+    document = pdf_export.build_questionnaire_pdf(interview)
+
+    filename = f"{pdf_export.safe_filename(interview.candidate_name)}_questions.pdf"
+    return Response(
+        content=document,
+        media_type="application/pdf",
+        # attachment makes the browser save the file instead of showing it, and
+        # filename is the name it saves it under.
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
