@@ -1,0 +1,74 @@
+# The Next.js frontend, running on the local Kubernetes cluster.
+#
+# It reuses the two secrets that already exist for the backend:
+#   ghcr-secret  - to pull the image
+#   app-secrets  - for INTERNAL_API_KEY, which is the same key on both sides
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hr-frontend
+  template:
+    metadata:
+      labels:
+        app: hr-frontend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: hr-frontend
+          image: ghcr.io/chethanagimhan/hr-interview-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            # The backend's Service name, not a pod IP. Pods come and go, this
+            # name does not.
+            - name: BACKEND_URL
+              value: http://hr-app-service:8080
+            # Only the one key is needed here, so it is picked out of the
+            # secret rather than pulling in everything with envFrom. The
+            # frontend has no business holding the Gemini key.
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: INTERNAL_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-frontend-service
+spec:
+  selector:
+    app: hr-frontend
+  # ClusterIP, so this is only reachable from inside the cluster. The Ingress
+  # is what puts it on the outside, and until that exists kubectl port-forward
+  # is enough to try it.
+  ports:
+    - port: 3000
+      targetPort: 3000
