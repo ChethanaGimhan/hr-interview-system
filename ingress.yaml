@@ -1,0 +1,31 @@
+# One way into the cluster. Everything from outside arrives here and goes to
+# the frontend, which is the only service that has any reason to be public.
+# The backend and the database are reached from inside by their Service names.
+#
+# This needs an ingress controller running first, which is a separate program
+# that watches for Ingress objects like this one and configures itself from
+# them. Nothing happens without it:
+#
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.15.1/deploy/static/provider/cloud/deploy.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hr-ingress
+spec:
+  # Which controller should pick this up. A cluster can run more than one.
+  ingressClassName: nginx
+  rules:
+    # No host set, so this matches whatever hostname the request arrives with,
+    # which is what makes it work on plain localhost. A real deployment would
+    # name the domain here.
+    - http:
+        paths:
+          - path: /
+            # Prefix, so /history and /interviews/1 match as well, not just /.
+            pathType: Prefix
+            backend:
+              service:
+                name: hr-frontend-service
+                port:
+                  number: 3000
