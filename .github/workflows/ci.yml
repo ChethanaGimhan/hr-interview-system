@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
   # Also run on pull requests, so problems show up before the merge instead of
-  # after it. The push-image job stays main-only because of its own if.
+  # after it. The push-images job stays main-only because of its own if.
   pull_request:
     branches: [main]
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +31,52 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-  push-image:
-    needs: test
+  # A separate job rather than more steps on the one above, so the two run at
+  # the same time and a broken frontend does not hide a broken backend.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      # No npm run build here on purpose. The Docker build below runs it inside
+      # the image anyway, and doing it twice just makes every run slower.
+      - name: Build Docker image
+        run: docker build -t hr-interview-frontend:${{ github.sha }} .
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: hr-interview-frontend:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+  push-images:
+    # Both have to pass. Pushing one half of a release is worse than pushing
+    # nothing, because the two images would then be out of step with each other.
+    needs: [backend, frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
+    strategy:
+      # The steps are identical for both images, only the name and the folder
+      # change, so a matrix runs the same job twice instead of copying it.
+      matrix:
+        include:
+          - name: hr-interview-system
+            context: .
+          - name: hr-interview-frontend
+            context: ./frontend
     steps:
       - uses: actions/checkout@v4
       - name: Log in to GHCR
@@ -49,13 +88,11 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
           push: true
           # latest is convenient but it is a moving pointer - it cannot be
           # rolled back to. The commit sha tag is the one that identifies an
           # exact build, so a bad deploy can go back to a known good image.
           tags: |
-            ghcr.io/chethanagimhan/hr-interview-system:latest
-            ghcr.io/chethanagimhan/hr-interview-system:${{ github.sha }}
-
-    
+            ghcr.io/chethanagimhan/${{ matrix.name }}:latest
+            ghcr.io/chethanagimhan/${{ matrix.name }}:${{ github.sha }}
