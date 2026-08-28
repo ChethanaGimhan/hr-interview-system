@@ -1,20 +1,57 @@
-services:
-  app:
-    build: .
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
+# Runs the whole system with one command: database, backend, frontend.
+#
+# The ${...} values are read from the .env file sitting next to this one, which
+# is not in git, so no password or API key is written down here.
+#
+#   docker compose up --build     start everything
+#   docker compose down           stop everything, keep the data
+#   docker compose down -v        stop everything and delete the data too
 
-  db:
+services:
+  postgres:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: devpassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: hr_interview
-    ports:
-      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The backend is ready long before Postgres has finished setting itself
+      # up, so there has to be a way to ask whether it can actually take a
+      # connection yet. Waiting for the container to exist is not enough.
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: .
+    environment:
+      # postgres is the service name above. Compose gives every service a
+      # hostname matching its name, so no IP address is written down anywhere,
+      # the same idea as the Service DNS name in Kubernetes.
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/hr_interview
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        # Wait for the healthcheck above to pass, not just for the container to
+        # start, otherwise the first query fails and the backend falls over.
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
 volumes:
-  pgdata:  
+  postgres-data:
