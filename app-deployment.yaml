@@ -71,9 +71,15 @@ metadata:
 spec:
   selector:
     app: hr-app
-  # Exposed on 8080, not 8000, so it does not fight with uvicorn running
+  # No type here, so this is a ClusterIP and only reachable from inside the
+  # cluster. It used to be a LoadBalancer, from back when the browser called
+  # the API directly. Now the browser goes to the Ingress, the Ingress goes to
+  # the frontend, and the frontend calls this by name, so there is no longer a
+  # reason for it to be on the outside at all. kubectl port-forward covers the
+  # times I want to poke at it myself.
+  #
+  # Still 8080 rather than 8000 so it does not clash with uvicorn running
   # locally during development.
   ports:
     - port: 8080
       targetPort: 8000
-  type: LoadBalancer
