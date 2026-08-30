@@ -1,0 +1,54 @@
+# Deploys the backend and the frontend to Render from this repository.
+#
+# The database is not here. Render's free Postgres is deleted after 30 days,
+# which is no good for a link that has to keep working, so Postgres lives on
+# Neon instead and the connection string goes in as DATABASE_URL.
+#
+# Every secret below is marked sync: false, which means Render asks for the
+# value in the dashboard instead of reading it from this file. That is the
+# point - this file is in git and the values are not.
+
+services:
+  - type: web
+    name: hr-interview-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Render calls this to decide whether the service is up, the same job the
+    # readiness probe does in Kubernetes.
+    healthCheckPath: /health
+    envVars:
+      # The Dockerfile starts uvicorn on 8000, so tell Render to send traffic
+      # there rather than leaving it to guess.
+      - key: PORT
+        value: 8000
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: hr-interview-frontend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 3000
+      # Filled in from the dashboard once the backend has a URL. It has to be
+      # the same key the backend checks for, or every request comes back 401.
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: BACKEND_URL
+        sync: false
