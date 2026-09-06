@@ -42,9 +42,17 @@ export async function callBackend(path, options = {}) {
   try {
     return Response.json(JSON.parse(text), { status: response.status });
   } catch {
+    // Not JSON at all. When that happens the reply came from something sitting
+    // in front of the backend rather than from the backend itself, usually a
+    // proxy error page, and putting a whole HTML document on the screen helps
+    // nobody. Keep the real thing in the log and send back one short line.
+    console.error(
+      `Backend replied to ${path} with status ${response.status} and no JSON:`,
+      text.slice(0, 500),
+    );
     return Response.json(
-      { detail: text || "The backend sent an empty reply" },
-      { status: response.status },
+      { detail: `The backend did not answer properly (status ${response.status})` },
+      { status: response.status === 200 ? 502 : response.status },
     );
   }
 }
