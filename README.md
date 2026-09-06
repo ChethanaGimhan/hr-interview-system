@@ -4,6 +4,13 @@
 
 Turns a candidate's CV and a job description into interview questions.
 
+Live: https://hr-interview-frontend.onrender.com
+
+It is on a free plan, so the first request after it has been idle for a while
+takes about a minute while the service starts back up. Generating a
+questionnaire takes another 45 seconds or so after that. There is a sample CV
+in the repo (`sample_cv.pdf`) to try it with.
+
 ## What it does
 
 HR teams prepare interview questions for every applicant by hand. This does it
