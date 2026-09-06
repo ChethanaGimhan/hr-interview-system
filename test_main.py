@@ -256,6 +256,16 @@ def test_a_name_with_quotes_in_it_cannot_break_the_download_header(fake_llm, mon
     )
 
 
+def test_created_at_says_which_time_zone_it_is_in(fake_llm):
+    # Without a time zone on the end, a browser reads the timestamp as local
+    # time and does not convert it, which showed the wrong time by however far
+    # the viewer is from UTC.
+    generate_one()
+
+    listed = client.get("/interviews", headers={"x-api-key": API_KEY}).json()
+    assert listed[0]["created_at"].endswith("+00:00")
+
+
 def test_asking_for_a_questionnaire_that_does_not_exist_returns_404():
     response = client.get("/interviews/9999", headers={"x-api-key": API_KEY})
     assert response.status_code == 404

@@ -8,10 +8,21 @@
 # Only the request models carry constraints, because FastAPI really does check
 # those.
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+
+def as_utc(value: datetime) -> str:
+    # created_at is saved as UTC, but the column has no time zone on it, so the
+    # value that comes back out is naive and the JSON ends up with no Z. A
+    # browser reading a timestamp with no time zone on it assumes local time and
+    # does not convert, so the page showed UTC labelled as local - five and a
+    # half hours out. Saying UTC explicitly here fixes it for every client.
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
 
 
 # --- requests ---
@@ -91,6 +102,10 @@ class InterviewSummary(BaseModel):
     created_at: datetime
     question_count: int
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return as_utc(value)
+
 
 class InterviewDetail(BaseModel):
     # Only the parts of the candidate that are worth keeping next to the
@@ -103,3 +118,7 @@ class InterviewDetail(BaseModel):
     skills: List[str]
     created_at: datetime
     questions: List[InterviewQuestion]
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return as_utc(value)
