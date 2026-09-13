@@ -22,13 +22,22 @@ function formatDate(value) {
 export default async function History() {
   let interviews = null;
 
-  try {
-    const response = await backendFetch("/interviews");
-    if (response.ok) {
-      interviews = await response.json();
+  // Two tries, because the backend is on a free plan and shuts down when it
+  // has not been used for a while. Waking it up takes about half a minute, and
+  // the first request sometimes gives up before it is ready. A second one a
+  // few seconds later usually finds it awake.
+  for (let attempt = 0; attempt < 2 && interviews === null; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
-  } catch {
-    // Leave interviews as null and show the message below.
+    try {
+      const response = await backendFetch("/interviews");
+      if (response.ok) {
+        interviews = await response.json();
+      }
+    } catch {
+      // Leave interviews as null and try again, or show the message below.
+    }
   }
 
   return (
@@ -44,7 +53,9 @@ export default async function History() {
 
       {interviews === null && (
         <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Could not load the saved questionnaires. Is the backend running?
+          The backend did not answer in time. It runs on a free plan and shuts
+          down when nobody has used it for a while, so it can take about a
+          minute to start back up. Reloading the page usually sorts it out.
         </p>
       )}
 
